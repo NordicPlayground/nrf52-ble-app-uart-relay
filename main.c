@@ -57,6 +57,7 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_pwr_mgmt.h"
 #include "nrf_ble_scan.h"
+#include "app_nus_server.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -460,6 +461,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         default:
             break;
     }
+
+    // Forward BLE events to the app NUS server module
+    app_nus_server_ble_evt_handler(p_ble_evt);
 }
 
 
@@ -641,6 +645,12 @@ static void db_discovery_init(void)
 }
 
 
+void app_nus_server_on_data_received(const uint8_t *data_ptr, uint16_t data_length)
+{
+    NRF_LOG_DEBUG("NUS server data received");
+}
+
+
 /**@brief Function for handling the idle state (main loop).
  *
  * @details Handles any pending log operations, then sleeps until the next event occurs.
@@ -668,11 +678,13 @@ int main(void)
     nus_c_init();
     scan_init();
 
+    app_nus_server_init(app_nus_server_on_data_received);
+
     // Start execution.
     printf("BLE UART central example started.\r\n");
     NRF_LOG_INFO("BLE UART central example started.");
     scan_start();
-
+   
     // Enter main loop.
     for (;;)
     {
