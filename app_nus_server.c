@@ -250,22 +250,29 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 void app_nus_server_ble_evt_handler(ble_evt_t const * p_ble_evt)
 {
     uint32_t err_code;
+    ble_gap_evt_t const * p_gap_evt = &p_ble_evt->evt.gap_evt;
 
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            NRF_LOG_INFO("Connected");
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
-            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-            err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
-            APP_ERROR_CHECK(err_code);
+            if(p_gap_evt->params.connected.role == BLE_GAP_ROLE_PERIPH)
+            {
+                NRF_LOG_INFO("Peripheral connected");
+                err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
+                APP_ERROR_CHECK(err_code);
+                m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+                err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
+                APP_ERROR_CHECK(err_code);
+            }
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-            NRF_LOG_INFO("Disconnected");
-            // LED indication will be changed when advertising starts.
-            m_conn_handle = BLE_CONN_HANDLE_INVALID;
+            if(p_gap_evt->params.connected.role == BLE_GAP_ROLE_PERIPH)
+            {
+                NRF_LOG_INFO("Peripheral disconnected");
+                // LED indication will be changed when advertising starts.
+                m_conn_handle = BLE_CONN_HANDLE_INVALID;
+            }
             break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
@@ -313,24 +320,10 @@ void app_nus_server_ble_evt_handler(ble_evt_t const * p_ble_evt)
 }
 
 
-/**@brief   Function for handling app_uart events.
- *
- * @details This function will receive a single character from the app_uart module and append it to
- *          a string. The string will be be sent over BLE when the last character received was a
- *          'new line' '\n' (hex 0x0A) or if the string has reached the maximum data length.
- */
-/**@snippet [Handling the data received over UART] */
-void app_nus_server_send_data(uint8_t *data_array, uint16_t length)
+uint32_t app_nus_server_send_data(const uint8_t *data_array, uint16_t length)
 {
-    uint32_t err_code = ble_nus_data_send(&m_nus, data_array, &length, m_conn_handle);
-    if ((err_code != NRF_ERROR_INVALID_STATE) &&
-        (err_code != NRF_ERROR_RESOURCES) &&
-        (err_code != NRF_ERROR_NOT_FOUND))
-    {
-        APP_ERROR_CHECK(err_code);
-    }
+    return ble_nus_data_send(&m_nus, (uint8_t *)data_array, &length, m_conn_handle);
 }
-/**@snippet [Handling the data received over UART] */
 
 
 /**@brief Function for initializing the Advertising functionality.
